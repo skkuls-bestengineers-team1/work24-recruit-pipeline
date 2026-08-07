@@ -1,6 +1,11 @@
 {
   "required_fields": [
     {
+      "column": "position_title",
+      "rule_code": "REQUIRED_POSITION_TITLE",
+      "message": "채용 공고 제목은 필수입니다."
+    },
+    {
       "column": "company_name",
       "rule_code": "REQUIRED_COMPANY_NAME",
       "message": "기업명은 필수입니다."
@@ -29,11 +34,6 @@
       "column": "annual_salary",
       "rule_code": "REQUIRED_ANNUAL_SALARY",
       "message": "연봉 정보는 필수입니다."
-    },
-    {
-      "column": "position_title",
-      "rule_code": "REQUIRED_POSITION_TITLE",
-      "message": "채용 공고 제목은 필수입니다."
     }
   ]
 }
