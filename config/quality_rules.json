@@ -1,0 +1,39 @@
+{
+  "required_fields": [
+    {
+      "column": "company_name",
+      "rule_code": "REQUIRED_COMPANY_NAME",
+      "message": "기업명은 필수입니다."
+    },
+    {
+      "column": "recruit_provider",
+      "rule_code": "REQUIRED_RECRUIT_PROVIDER",
+      "message": "정보 제공처는 필수입니다."
+    },
+    {
+      "column": "location",
+      "rule_code": "REQUIRED_LOCATION",
+      "message": "지역은 필수입니다."
+    },
+    {
+      "column": "deadline_date",
+      "rule_code": "REQUIRED_DEADLINE_DATE",
+      "message": "공고 마감일은 필수입니다."
+    },
+    {
+      "column": "registration_date",
+      "rule_code": "REQUIRED_REGISTRATION_DATE",
+      "message": "공고 등록일은 필수입니다."
+    },
+    {
+      "column": "annual_salary",
+      "rule_code": "REQUIRED_ANNUAL_SALARY",
+      "message": "연봉 정보는 필수입니다."
+    },
+    {
+      "column": "position_title",
+      "rule_code": "REQUIRED_POSITION_TITLE",
+      "message": "채용 공고 제목은 필수입니다."
+    }
+  ]
+}
