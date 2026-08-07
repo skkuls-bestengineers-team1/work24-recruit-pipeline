@@ -1,0 +1,41 @@
+테이블명,recruit,,,,,,,,,,,,,,,,,,,
+컬럼명_한글,순번,회사명,채용공고명,정보제공처 ,기업구분 ,학력, 경력,지역,근무조건,공고_마감일  ,공고_등록일,연봉,최소연봉,최저연봉,수정일자,수정자,등록일자,등록자,,
+컬럼명_영어,no,company_name,position_title,recruit_provider,company_category,education,career,location,working_condition,deadline_date,registration_date,annual_salary,min_annaul_salary,max_annaul_salary,,,,,,
+자료형,INTEGER,VARCAHR(50),VARCHAR(200),VARCHAR(50),VARCHAR(20),VARCHAR(20),VARCHAR(20),VARCHAR(10),VARCHAR(10),DATE,DATE,VARCHAR(100),INTEGER,INTEGER,DATE,VARCHAR(20),DATE,VARCHAR(20),,
+NULL여부,NOT NULL,NOT NULL,NOT NULL,NOT NULL,NULL,NULL,NULL,NOT NULL,NULL,NOT NULL,NOT NULL,NOT NULL,NOT NULL,NOT NULL,NOT NULL,NOT NULL,NOT NULL,NOT NULL,,
+PK/FK,,PK,PK,,,,,,,,,,,,,,,,,
+,1,주식회사 하나은행,퍼포먼스 광고 디자이너 경력직 모집 (계약직),잡코리아,대기업,학력무관,경력1년,서초구,주5일,2026-08-15,2026-07-27,"3,440 만원 ~ 3,440 만원",3440,3440,2026-08-07,PJS,2026-08-07,PJS,,
+,2,삼성전자,금융전문가,인크루트,코스피,대졸(4년),신입,강남구,주6일,2026-08-19,2026-07-20,"3,100 만원 ~ 6,500 만원",3100,6500,2026-08-07,PJS,2026-08-07,PJS,,
+,3,,,,,,,,,,,,,,,,,,,
+,,,,,,,,,,,,,,,,,,,,
+테이블명,recruit_pipeline_run_history,참고 테이블: pipeline_run_history ,,,,,,,,,,,,,,,,,,
+컬럼명_영어,execution_id,started_at,completed_at,status,raw_count,standardized_count,valid_count,invalid_count,issue_count,error_message,,,,,,,,,,
+자료형,uuid,timestamp with tir,timestamp with tir,character varying,integer,integer,integer,integer,integer,text,,,,,,,,,,
+NULL여부,NOT NULL,NOT NULL,NULL,NOT NULL,NOT NULL,NOT NULL,NOT NULL,NOT NULL,NOT NULL,NULL,,,,,,,,,,
+,,,,,,,,,,,,,,,,,,,,
+,,,,,,,,,,,,,,,,,,,,
+테이블명,recruit_raw,참고 테이블 : web_inquiry_raw,,,,,,,,,,,,,,,,,,
+컬럼명_영어,load_id,execution_id,source_row_number,source_inquiry_id,author_name_raw,country_name_raw,language_code_raw,posted_at_raw,inquiry_type_raw,priority_raw,product_code_raw,product_name_raw,answer_status_raw,inquiry_title_raw,inquiry_text_raw,source_url,collected_at,,,
+자료형,bigint,uuid,integer,text,text,text,text,text,text,text,text,text,text,text,text,text,timestamp with tir,,,
+NULL여부,NOT NULL,NOT NULL,NOT NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL,,,
+,,,,,,,,,,,,,,,,,,,,
+테이블명,recruit_rejected,참고 테이블 : web_inquiry_rejected,,,,,,,,,,,,,,,,,,
+컬럼명_영어,load_id,execution_id,source_row_number,source_inquiry_id,author_name,country_code,language_code,posted_at,inquiry_type_code,priority_code,product_code,product_name,answer_status_code,inquiry_title,inquiry_text,source_url,collected_at,standardized_at,quality_status,quality_issue_count
+자료형,bigint,uuid,integer,text,text,character varying,character varying,timestamp with tir,character varying,character varying,character varying,text,character varying,text,text,text,timestamp with tir,timestamp with tir,character varying,integer
+NULL여부,NOT NULL,NOT NULL,NOT NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL,NOT NULL,NOT NULL
+,,,,,,,,,,,,,,,,,,,,
+테이블명,recruit_standardized,참고 테이블 : web_inquiry_standardized,,,,,,,,,,,,,,,,,,
+컬럼명_영어,load_id,execution_id,source_row_number,source_inquiry_id,author_name,country_code,language_code,posted_at,inquiry_type_code,priority_code,product_code,product_name,answer_status_code,inquiry_title,inquiry_text,source_url,collected_at,standardized_at,,
+자료형,bigint,uuid,integer,text,text,character varying,character varying,timestamp with tir,character varying,character varying,character varying,text,character varying,text,text,text,timestamp with tir,timestamp with tir,,
+NULL여부,NOT NULL,NOT NULL,NOT NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL,,
+,,,,,,,,,,,,,,,,,,,,
+테이블명,recruit_valid,참고 테이블 : web_inquiry_valid,,,,,,,,,,,,,,,,,,
+컬럼명_영어,load_id,execution_id,source_row_number,source_inquiry_id,author_name,country_code,language_code,posted_at,inquiry_type_code,priority_code,product_code,product_name,answer_status_code,inquiry_title,inquiry_text,source_url,collected_at,standardized_at,quality_status,quality_issue_count
+자료형,bigint,uuid,integer,text,text,character varying,character varying,timestamp with tir,character varying,character varying,character varying,text,character varying,text,text,text,timestamp with tir,timestamp with tir,character varying,integer
+NULL여부,NOT NULL,NOT NULL,NOT NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL,NOT NULL,NOT NULL
+,,,,,,,,,,,,,,,,,,,,
+테이블명,"recruit_issue
+",참고 테이블 : web_inquiry_quality_issue,,,,,,,,,,,,,,,,,,
+컬럼명_영어,load_id,execution_id,source_row_number,source_inquiry_id,rule_code,column_name,invalid_value,error_message,,,,,,,,,,,,
+자료형,bigint,uuid,integer,text,character varying,character varying,text,text,,,,,,,,,,,,
+NULL여부,NOT NULL,NOT NULL,NOT NULL,NULL,NOT NULL,NOT NULL,NULL,NOT NULL,,,,,,,,,,,,
