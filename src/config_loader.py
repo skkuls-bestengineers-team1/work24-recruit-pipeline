@@ -31,7 +31,7 @@ def load_database_settings(env_path: Path) -> DatabaseSettings:
         port=int(os.getenv("PGPORT", "5432")),
         database=os.getenv("PGDATABASE", "work24_recruit_database"),
         user=os.getenv("PGUSER", "postgres"),
-        password=os.getenv("PGPASSWORD", "1234"),
+        password=os.getenv("PGPASSWORD", ""),
         schema=os.getenv("PGSCHEMA", "work24_recruit_schema"),
         echo_sql=os.getenv("SQLALCHEMY_ECHO", "false").strip().lower()
         in {"1", "true", "yes", "y"},
