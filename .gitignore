@@ -9,3 +9,4 @@ output/quality/*
 !output/quality/.gitkeep
 reports/*
 !reports/.gitkeep
+.venv/

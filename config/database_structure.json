@@ -1,0 +1,13 @@
+{
+  "database": "work24_recruit_database",
+  "schema": "work24_recruit_schema",
+  "tables": {
+    "recruit": "최종 채용공고 비즈니스 테이블",
+    "recruit_pipeline_run_history": "파이프라인 실행 이력과 단계별 적재 건수",
+    "recruit_raw": "크롤링 원천 채용공고",
+    "recruit_standardized": "표준화 채용공고",
+    "recruit_valid": "품질 규칙 통과 행",
+    "recruit_rejected": "품질 규칙 위반 행",
+    "recruit_issue": "행별 품질 규칙 위반 상세"
+  }
+}
