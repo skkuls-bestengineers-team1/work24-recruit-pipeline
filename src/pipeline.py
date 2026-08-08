@@ -1,91 +1,140 @@
 from __future__ import annotations
 
-import json
-from datetime import datetime
 from pathlib import Path
+
 import pandas as pd
 
 from src.config_loader import (
     load_database_settings,
-    # load_quality_rules,
-    # load_raw_data,
-    # load_reference_data,
+    load_quality_rules,
+    load_raw_data,
+    load_reference_data,
 )
-# from src.crawler import crawl
-
+from src.crawler import crawl_jobs
 from src.database import (
-    create_work24_recruit_schema,
-    create_postgresql_engine,
     build_metadata,
+    create_postgresql_engine,
+    create_work24_recruit_schema,
     insert_target_table,
 )
-from src.models import PipelinePaths, PipelineResult
-# from src.quality_checker import validate_inquiries
-# from src.reporting import build_report, save_file_outputs
-# from src.standardizer import standardize_inquiries
+from src.models import PipelinePaths
+from src.quality_checker import validate_jobs
+from src.standardizer import normalize_company_category, standardize_jobs
 
-# 테스트용(crawling 연동 후 삭제 예정)
-BASE_DIR = Path(__file__).resolve().parent.parent
-DATA_PATH = BASE_DIR / "data" / "raw" / "job_information.csv"
+
+def _ensure_parent(path: Path) -> None:
+    path.parent.mkdir(parents=True, exist_ok=True)
+
+
+def _prepare_raw_dataframe(dataframe: pd.DataFrame) -> pd.DataFrame:
+    raw_df = dataframe.copy()
+    if "company_category" in raw_df.columns:
+        raw_df["company_category"] = raw_df["company_category"].map(
+            normalize_company_category
+        )
+    return raw_df
+
+
+def _prepare_recruit_dataframe(dataframe: pd.DataFrame) -> pd.DataFrame:
+    recruit_columns = [
+        "company_name",
+        "position_title",
+        "recruit_provider",
+        "company_category",
+        "education",
+        "career",
+        "location",
+        "working_condition",
+        "deadline_date",
+        "registration_date",
+        "annual_salary",
+        "min_annual_salary",
+        "max_annual_salary",
+    ]
+    recruit_df = dataframe.copy()
+    for column in recruit_columns:
+        if column not in recruit_df.columns:
+            recruit_df[column] = pd.NA
+    recruit_df = recruit_df[recruit_columns].copy()
+    recruit_df["min_annual_salary"] = (
+        pd.to_numeric(recruit_df["min_annual_salary"], errors="coerce")
+        .fillna(0)
+        .astype(int)
+    )
+    recruit_df["max_annual_salary"] = (
+        pd.to_numeric(recruit_df["max_annual_salary"], errors="coerce")
+        .fillna(0)
+        .astype(int)
+    )
+    return recruit_df
+
 
 def run_full_pipeline(
     paths: PipelinePaths,
     env_path: Path,
+    skip_crawl: bool = False,
 ) -> str:
+    print("-" * 40)
+    if skip_crawl:
+        print("기존 raw CSV를 사용합니다.")
+        crawling_df = load_raw_data(paths.raw_csv)
+    else:
+        print("크롤링을 시작합니다.")
+        crawling_df = crawl_jobs(save=True, save_path=paths.raw_csv)
+    crawling_df = _prepare_raw_dataframe(crawling_df)
+    print(f"원천 데이터: {len(crawling_df)}건")
+    print("-" * 40)
 
-    # 1. 크롤링 진행 여부(y/n)에 따라 로직 변경
+    references = load_reference_data(paths.reference_dir)
+    standardized_df = standardize_jobs(
+        raw_df=crawling_df,
+        references=references,
+    )
+    print(f"표준화 데이터: {len(standardized_df)}건")
 
-    # 2. summary할 대상 dataframe을 생성한다.
-    # valid, invalid, standardized, issue dataframe 생성 필요
-    # 3. 데이터베이스에 적재한다.
-    # (1) 환경변수를 load한다.
+    rules = load_quality_rules(paths.quality_rules)
+    validation = validate_jobs(
+        standardized_df=standardized_df,
+        rules=rules,
+    )
+    print(
+        f"품질 검증 완료 | valid={len(validation.valid_df)} "
+        f"invalid={len(validation.invalid_df)} "
+        f"issue={len(validation.issue_detail_df)}"
+    )
+
+    for path, dataframe in [
+        (paths.standardized_csv, standardized_df),
+        (paths.valid_csv, validation.valid_df),
+        (paths.invalid_csv, validation.invalid_df),
+        (paths.issue_csv, validation.issue_detail_df),
+        (paths.quality_result_csv, validation.row_result_df),
+    ]:
+        _ensure_parent(path)
+        dataframe.to_csv(path, index=False, encoding="utf-8-sig")
+
     settings = load_database_settings(env_path)
-
-    # (2) 스키마를 생성한다.
     engine = create_postgresql_engine(settings)
     create_work24_recruit_schema(settings, engine)
-    print('-' * 40)
-    print(f'고용24 스키마가 정상적으로 생성되었습니다.')
-    print('-' * 40)
+    engine = create_postgresql_engine(settings)
+    print("-" * 40)
+    print("고용24 스키마가 정상적으로 생성되었습니다.")
+    print("-" * 40)
 
-    # (3) metadata 사용하여 table을 생성한다.
-    metadata, tables = build_metadata('work24_recruit_schema')
+    metadata, tables = build_metadata(settings.schema)
     metadata.create_all(engine, checkfirst=True)
-    print('-' * 40)
-    print(f'고용24 테이블이 정상적으로 생성되었습니다.')
-    print('-' * 40)
+    print("-" * 40)
+    print("고용24 테이블이 정상적으로 생성되었습니다.")
+    print("-" * 40)
 
-    # (5) 테이블에 데이터를 적재한다.
-    target = {
-        "recruit",
-        "recruit_raw",
-        # "recruit_pipeline_run_history"
-        # "recruit_rejected",
-        # "recruit_standardized",
-        # "recruit_valid",
-        # "recruit_issue",
-    }
+    recruit_df = _prepare_recruit_dataframe(validation.valid_df)
+    raw_df = _prepare_raw_dataframe(crawling_df)
 
-    # 크롤링 연동 후 삭제 예정
-    # 크롤링 연동 후 크롤링 결과 값이 들어갈 예정
-    crawling_df = pd.read_csv(DATA_PATH, encoding='utf-8-sig')
+    insert_target_table(recruit_df, "recruit", tables, engine, settings)
+    insert_target_table(raw_df, "recruit_raw", tables, engine, settings)
 
-    for table in target:
-        insert_target_table(crawling_df
-                            , table
-                            , tables
-                            , engine
-                            , settings)
-
-    # 4. 결과를 json 파일로 저장한다.
-
-    #  현재 개발중이므로 주석처리
-    #  반환값 String으로 임시 변경
-    # return PipelineResult(
-    #     crawl=crawl_result,
-    #     validation=validation,
-    #     report=report,
-    #     database_summary=database_summary,
-    # )
-    return f'데이터베이스/스키마/테이블/데이터 적재까지 완료되었습니다.'
-
+    return (
+        "데이터베이스/스키마/테이블/데이터 적재까지 완료되었습니다. "
+        f"(raw={len(crawling_df)}, standardized={len(standardized_df)}, "
+        f"valid={len(validation.valid_df)}, invalid={len(validation.invalid_df)})"
+    )
