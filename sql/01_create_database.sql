@@ -6,6 +6,9 @@
 -- 이 SQL을 실행하세요.
 --
 -- CREATE DATABASE는 트랜잭션 블록 안에서 실행할 수 없습니다.
+
+-- [주의] main() 실행 시 work24_recruit_database가 생성됩니다.
+-- 정상적으로 생성되지 않는 경우에만 DB에 직접 실행해주세요.
 -- ============================================================
 
 CREATE DATABASE work24_recruit_database
