@@ -100,23 +100,23 @@ def extract_jobs(soup: BeautifulSoup) -> list[dict]:
 
         info = row.select_one("ul.emp_info_dtl")
         if info:
-            details = [
-                clean_text(li.get_text(" "))
-                for li in info.select("li")
-            ]
+            dollar_li = info.select_one("li.dollar")
+            job["annual_salary"] = clean_text(dollar_li.get_text(" ")) if dollar_li else None
 
-            job["annual_salary"] = details[0] if len(details) > 0 else None
-
-            if len(details) > 1:
-                career_edu = details[1].split(maxsplit=1)
+            member_li = info.select_one("li.member")
+            if member_li:
+                career_edu = clean_text(member_li.get_text(" ")).split(maxsplit=1)
                 job["career"] = career_edu[0]
                 job["education"] = career_edu[1] if len(career_edu) > 1 else None
             else:
                 job["career"] = None
                 job["education"] = None
 
-            job["working_condition"] = details[2] if len(details) > 2 else None
-            job["location"] = details[3] if len(details) > 3 else None
+            workcond_li = info.select_one("li.time")
+            job["working_condition"] = clean_text(workcond_li.get_text(" ")) if workcond_li else None
+
+            location_li = info.select_one("li.site")
+            job["location"] = clean_text(location_li.get_text(" ")) if location_li else None
 
         date_info = row.select("p.s1_r")
         if len(date_info) >= 2:
