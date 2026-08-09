@@ -658,6 +658,47 @@ elif menu == "📈 채용시장 분석":
         + salary_df["max_annual_salary"]
     ) / 2
 
+    # 경력 조건별 연봉 분포 비교를 위해 세부 경력값을 대표 그룹으로 통합
+    def classify_career_for_salary(value: object) -> str:
+        if value is None:
+            return "미상"
+
+        career = str(value).strip()
+
+        if not career or career.lower() == "nan":
+            return "미상"
+
+        if career == "경력무관":
+            return "경력무관"
+
+        if career == "신입":
+            return "신입"
+
+        if career.startswith("신입/경력"):
+            return "신입/경력"
+
+        if career.startswith("경력"):
+            return "경력"
+
+        return "미상"
+
+    salary_df["career_group"] = (
+        salary_df["career"]
+        .map(classify_career_for_salary)
+    )
+
+    career_order = [
+        "경력무관",
+        "신입",
+        "신입/경력",
+        "경력",
+    ]
+
+    # 비교 가능한 대표 경력 그룹만 연봉 Box Plot에 사용
+    career_salary_df = salary_df[
+        salary_df["career_group"].isin(career_order)
+    ].copy()
+
     st.subheader("💰 연봉 분석")
 
     if salary_df.empty:
@@ -690,14 +731,22 @@ elif menu == "📈 채용시장 분석":
                 f"{salary_df['max_annual_salary'].max():,.0f}만원",
             )
 
+        # 전체 연봉 요약은 KPI로 제공하고,
+        # Box Plot에서는 경력 조건별 연봉 분포와 이상치를 비교
         salary_fig = px.box(
-            salary_df,
+            career_salary_df,
             x="salary_mid",
+            y="career_group",
+            color="career_group",
             points="outliers",
+            category_orders={
+                "career_group": career_order,
+            },
             labels={
                 "salary_mid": "대표 연봉 (만원)",
+                "career_group": "경력 조건",
             },
-            color_discrete_sequence=[SALARY_COLOR],
+            color_discrete_sequence=CAREER_COLORS,
         )
 
         salary_fig.update_layout(
@@ -707,12 +756,11 @@ elif menu == "📈 채용시장 분석":
 
         salary_fig = apply_chart_style(
             salary_fig,
-            height=340,
+            height=430,
         )
 
         salary_fig.update_yaxes(
             showgrid=False,
-            showticklabels=False,
         )
 
         st.plotly_chart(
@@ -721,7 +769,8 @@ elif menu == "📈 채용시장 분석":
         )
 
         st.caption(
-            "※ 대표 연봉은 공고별 최소 연봉과 최대 연봉의 평균값으로 계산했습니다."
+            "※ 대표 연봉은 공고별 최소·최대 연봉의 평균값으로 계산했으며, "
+            "경력 조건별 연봉 분포와 이상치를 비교합니다."
         )
 
     st.divider()
