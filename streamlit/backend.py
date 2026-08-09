@@ -4,6 +4,7 @@ from datetime import date, timedelta
 from pathlib import Path
 
 import pandas as pd
+import json
 
 from src.config_loader import load_database_settings
 from src.database import create_postgresql_engine
@@ -11,6 +12,7 @@ from src.database import create_postgresql_engine
 
 BASE_DIR = Path(__file__).resolve().parent.parent
 ENV_PATH = BASE_DIR / "config" / ".env"
+REPORT_DIR = BASE_DIR / "reports"
 
 
 def load_data() -> pd.DataFrame:
@@ -217,3 +219,82 @@ def get_filter_options(df: pd.DataFrame) -> dict:
         "careers": unique_values("career"),
         "educations": unique_values("education"),
     }
+
+
+def load_quality_report() -> dict:
+    """
+    품질검증 Reporting JSON을 불러옵니다.
+    """
+
+    report_path = REPORT_DIR / "quality_report.json"
+
+    with open(
+        report_path,
+        "r",
+        encoding="utf-8",
+    ) as file:
+        return json.load(file)
+
+
+def load_quality_rule_summary() -> pd.DataFrame:
+    """
+    품질 규칙별 오류 요약 CSV를 불러옵니다.
+    """
+
+    report_path = REPORT_DIR / "quality_rule_summary.csv"
+
+    return pd.read_csv(
+        report_path,
+        encoding="utf-8-sig",
+    )
+
+
+def load_missing_value_summary() -> pd.DataFrame:
+    """
+    컬럼별 결측치 요약 CSV를 불러옵니다.
+    """
+
+    report_path = REPORT_DIR / "missing_value_summary.csv"
+
+    return pd.read_csv(
+        report_path,
+        encoding="utf-8-sig",
+    )
+
+
+def get_career_group_counts(df: pd.DataFrame) -> pd.DataFrame:
+    """
+    세부 경력 조건을 4개 대표 그룹으로 묶어 공고 수를 계산합니다.
+    """
+
+    def classify_career(value: object) -> str:
+        if pd.isna(value):
+            return "미상"
+
+        career = str(value).strip()
+
+        if not career:
+            return "미상"
+
+        if career == "경력무관":
+            return "경력무관"
+
+        if career == "신입":
+            return "신입"
+
+        if career.startswith("신입/경력"):
+            return "신입/경력"
+
+        if career.startswith("경력"):
+            return "경력"
+
+        return career
+
+    career_group = df["career"].map(classify_career)
+
+    return (
+        career_group
+        .value_counts()
+        .rename_axis("경력")
+        .reset_index(name="공고 수")
+    )

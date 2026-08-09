@@ -4,3 +4,5 @@ beautifulsoup4>=4.12,<5
 SQLAlchemy>=2.0,<2.2
 psycopg[binary]>=3.2,<4
 python-dotenv>=1.0,<2
+streamlit>=1.40,<2
+plotly>=5,<7
