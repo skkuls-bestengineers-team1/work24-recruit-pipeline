@@ -25,6 +25,7 @@ from src.database import (
 )
 from src.models import PipelinePaths
 from src.quality_checker import validate_jobs
+from src.reporting import generate_reports
 from src.standardizer import normalize_company_category, standardize_jobs
 
 
@@ -102,6 +103,7 @@ def run_full_pipeline(
     validation = validate_jobs(
         standardized_df=standardized_df,
         rules=rules,
+        
     )
     print(
         f"품질 검증 완료 | valid={len(validation.valid_df)} "
@@ -109,6 +111,19 @@ def run_full_pipeline(
         f"issue={len(validation.issue_detail_df)}"
     )
 
+    # 품질 리포트 생성
+    report = generate_reports(
+        standardized_df=standardized_df,
+        validation=validation,
+        paths=paths,
+    )
+
+    print(
+        f"리포트 생성 완료 | "
+        f"rule_summary={len(report.rule_summary)}건"
+    )
+
+    # 품질검증 결과 CSV 저장
     for path, dataframe in [
         (paths.standardized_csv, standardized_df),
         (paths.valid_csv, validation.valid_df),
@@ -119,6 +134,7 @@ def run_full_pipeline(
         _ensure_parent(path)
         dataframe.to_csv(path, index=False, encoding="utf-8-sig")
 
+    # DB 연결 및 적재
     settings = load_database_settings(env_path)
     engine = create_postgresql_engine(settings)
     create_work24_recruit_schema(settings, engine)
