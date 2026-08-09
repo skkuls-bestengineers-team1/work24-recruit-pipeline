@@ -356,7 +356,7 @@ if menu == "📊 채용 현황":
 
         with col2:
             st.caption("연봉")
-            st.write("**3,000만원 이상**")
+            st.write("**3,000만원 ~ 10,000만원**")
 
         with col3:
             st.caption("등록일")
