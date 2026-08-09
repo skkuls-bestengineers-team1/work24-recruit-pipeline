@@ -32,7 +32,16 @@ from src.config_loader import DatabaseSettings
 from src.models import ValidationResult
 
 
-from pathlib import Path
+
+'''
+standardize
+1. company_name 빈 list [] -> null
+2. location NaN -> null
+3. annual_salary -> min_annual_salary
+                 -> max_annual_salary
+4. recruit_provider -> '정보제공처' 삭제
+                        공백 제거
+'''
 
 def create_work24_recruit_schema(settings:DatabaseSettings , engine:Engine)->None:
     ''' PostgreSQL Engine 생성(스키마용) '''
@@ -40,9 +49,15 @@ def create_work24_recruit_schema(settings:DatabaseSettings , engine:Engine)->Non
         with engine.connect().execution_options(
             isolation_level="AUTOCOMMIT"
         ) as connection:
+
             connection.execute(
-                text(f'create schema if not exists "{settings.schema}"')
+                text(f'drop schema if exists {settings.schema} cascade')
             )
+
+            connection.execute(
+                text(f'create schema {settings.schema}')
+            )
+
     except Exception as error:
         raise SQLAlchemyError(f'{settings.schema} 생성에 실패하였습니다.')
     finally:
@@ -92,6 +107,7 @@ def build_metadata(schema:str) -> tuple(MetaData,dict[str, Table]):
         Column("annual_salary", String(100), nullable=False),
         Column("min_annual_salary", Integer, nullable=False, server_default="0"),
         Column("max_annual_salary", Integer, nullable=False, server_default="0"),
+        Column("avg_annual_salary", Integer, nullable=False, server_default="0"),
         Column("updated_at", DateTime(timezone=True), nullable=False),
         Column("updated_by", String(100), nullable=False),
         Column("created_at", DateTime(timezone=True), nullable=False),
@@ -128,10 +144,10 @@ def build_metadata(schema:str) -> tuple(MetaData,dict[str, Table]):
         Column("started_at", DateTime(timezone=True), nullable=False),
         Column("completed_at", DateTime(timezone=True), nullable=True),
         Column("status", Text, nullable=False),
-        Column("raw_count", Integer, nullable=False,server_default="0"),
-        Column("standardized_count", Integer, nullable=False,server_default="0"),
-        Column("valid_count", Integer, nullable=False, server_default="0"),
-        Column("invalid_count", Integer, nullable=False, server_default="0"),
+        Column("raw_count", Integer, nullable=True,server_default="0"),
+        Column("standardized_count", Integer, nullable=True,server_default="0"),
+        Column("valid_count", Integer, nullable=True, server_default="0"),
+        Column("invalid_count", Integer, nullable=True, server_default="0"),
         Column("issue_count", Integer, nullable=True, server_default="0"),
         Column("error_message", Text, nullable=True),
     )
@@ -141,17 +157,20 @@ def build_metadata(schema:str) -> tuple(MetaData,dict[str, Table]):
         "recruit_rejected",
         metadata,
         Column("no", Integer, nullable=False, server_default="0"),
-        Column("execution_id", PG_UUID(as_uuid=True), nullable=False),
-        Column("started_at", DateTime(timezone=True), nullable=False),
-        Column("completed_at", DateTime(timezone=True), nullable=True),
-        Column("status", Text, nullable=False),
-        Column("raw_count", Integer, nullable=False),
-        Column("standardized_count", Integer, nullable=False),
-        Column("valid_count", Integer, nullable=False),
-        Column("invalid_count", Integer, nullable=False),
-        Column("issue_count", Integer, nullable=True),
-        Column("error_message", Text, nullable=True),
-        Column('standardized_at', DateTime(timezone=True), nullable=True),
+        Column("company_name", String(50), nullable=False, primary_key=True),
+        Column("position_title", String(200), nullable=False, primary_key=True),
+        Column("recruit_provider", String(50), nullable=False),
+        Column("company_category", String(100), nullable=True),
+        Column("education", String(100), nullable=True),
+        Column("career", String(100), nullable=True),
+        Column("location", String(100), nullable=False),
+        Column("working_condition", String(100), nullable=True),
+        Column("deadline_date", DateTime(timezone=True), nullable=False),
+        Column("registration_date", DateTime(timezone=True), nullable=False),
+        Column("annual_salary", String(100), nullable=False),
+        Column("min_annual_salary", Integer, nullable=False, server_default="0"),
+        Column("max_annual_salary", Integer, nullable=False, server_default="0"),
+        Column("avg_annual_salary", Integer, nullable=False, server_default="0"),
         Column('quality_status', Text, nullable=False),
         Column('quality_issue_count', Integer, nullable=False),
     )
@@ -161,17 +180,24 @@ def build_metadata(schema:str) -> tuple(MetaData,dict[str, Table]):
         "recruit_standardized",
         metadata,
         Column("no", Integer, nullable=False, server_default="0"),
-        Column("execution_id", PG_UUID(as_uuid=True), nullable=False),
-        Column("started_at", DateTime(timezone=True), nullable=False),
-        Column("completed_at", DateTime(timezone=True), nullable=True),
-        Column("status", Text, nullable=False),
-        Column("raw_count", Integer, nullable=False),
-        Column("standardized_count", Integer, nullable=False),
-        Column("valid_count", Integer, nullable=False),
-        Column("invalid_count", Integer, nullable=False),
-        Column("issue_count", Integer, nullable=True),
-        Column("error_message", Text, nullable=True),
-        Column('standardized_at', DateTime(timezone=True), nullable=True),
+        Column("company_name", String(50), nullable=False, primary_key=True),
+        Column("position_title", String(200), nullable=False, primary_key=True),
+        Column("recruit_provider", String(50), nullable=False),
+        Column("company_category", String(100), nullable=True),
+        Column("education", String(100), nullable=True),
+        Column("career", String(100), nullable=True),
+        Column("location", String(100), nullable=False),
+        Column("working_condition", String(100), nullable=True),
+        Column("deadline_date", DateTime(timezone=True), nullable=False),
+        Column("registration_date", DateTime(timezone=True), nullable=False),
+        Column("annual_salary", String(100), nullable=False),
+        Column("min_annual_salary", Integer, nullable=False, server_default="0"),
+        Column("max_annual_salary", Integer, nullable=False, server_default="0"),
+        Column("avg_annual_salary", Integer, nullable=False, server_default="0"),
+        Column("updated_at", DateTime(timezone=True), nullable=False),
+        Column("updated_by", String(100), nullable=False),
+        Column("created_at", DateTime(timezone=True), nullable=False),
+        Column("created_by", String(100), nullable=False),
     )
 
     # recruit_valid(VALID) 테이블을 생성한다.
@@ -179,17 +205,20 @@ def build_metadata(schema:str) -> tuple(MetaData,dict[str, Table]):
         "recruit_valid",
         metadata,
         Column("no", Integer, nullable=False, server_default="0"),
-        Column("execution_id", PG_UUID(as_uuid=True), nullable=False),
-        Column("started_at", DateTime(timezone=True), nullable=False),
-        Column("completed_at", DateTime(timezone=True), nullable=True),
-        Column("status", Text, nullable=False),
-        Column("raw_count", Integer, nullable=False),
-        Column("standardized_count", Integer, nullable=False),
-        Column("valid_count", Integer, nullable=False),
-        Column("invalid_count", Integer, nullable=False),
-        Column("issue_count", Integer, nullable=True),
-        Column("error_message", Text, nullable=True),
-        Column('standardized_at', DateTime(timezone=True), nullable=True),
+        Column("company_name", String(50), nullable=False, primary_key=True),
+        Column("position_title", String(200), nullable=False, primary_key=True),
+        Column("recruit_provider", String(50), nullable=False),
+        Column("company_category", String(100), nullable=True),
+        Column("education", String(100), nullable=True),
+        Column("career", String(100), nullable=True),
+        Column("location", String(100), nullable=False),
+        Column("working_condition", String(100), nullable=True),
+        Column("deadline_date", DateTime(timezone=True), nullable=False),
+        Column("registration_date", DateTime(timezone=True), nullable=False),
+        Column("annual_salary", String(100), nullable=False),
+        Column("min_annual_salary", Integer, nullable=False, server_default="0"),
+        Column("max_annual_salary", Integer, nullable=False, server_default="0"),
+        Column("avg_annual_salary", Integer, nullable=False, server_default="0"),
         Column('quality_status', Text, nullable=False),
         Column('quality_issue_count', Integer, nullable=False),
     )
@@ -224,9 +253,11 @@ def insert_recruit_raw_table(
    , tables : dict[str, Table]
    , engine : Engine
    , settings : DatabaseSettings
-) -> bool:
+) -> None:
     ''' recruit_raw 테이블에 데이터를 적재한다. '''
-
+    print("-" * 40)
+    print(f"{target} 테이블 데이터 적재가 시작되었습니다.")
+    print("-" * 40)
     # 1. 원본 데이터를 복사한다.
     _recruit_df = crawling_df.copy()
 
@@ -272,10 +303,14 @@ def insert_recruit_raw_table(
                     tables[f'{target}'].insert(),
                     _recruit_df.to_dict(orient='records')[idx]
                 )
-        return True
+        print("-" * 40)
+        print(f"{target} 테이블 데이터 적재가 완료되었습니다.")
+        print("-" * 40)
     except SQLAlchemyError as error:
         print(f'SQLALCHEMY_ERROR: {error}')
-        return False
+        print("-" * 40)
+        print(f"{target} 테이블 데이터 적재가 실패하였습니다.")
+        print("-" * 40)
 
 def insert_recruit_table(
     crawling_df : pd.DataFrame
@@ -283,8 +318,11 @@ def insert_recruit_table(
    , tables : dict[str, Table]
    , engine : Engine
    , settings : DatabaseSettings
-) -> bool:
+) -> None:
     ''' recruit 테이블에 데이터를 적재한다. '''
+    print("-" * 40)
+    print(f"{target} 테이블 데이터 적재가 시작되었습니다.")
+    print("-" * 40)
     # 1. 원본 데이터를 복사한다.
     _recruit_df = crawling_df.copy()
 
@@ -318,56 +356,273 @@ def insert_recruit_table(
                     tables[f'{target}'].insert(),
                     _recruit_df.to_dict(orient='records')[idx]
                 )
-        return True
+        print("-" * 40)
+        print(f"{target} 테이블 데이터 적재가 완료되었습니다.")
+        print("-" * 40)
     except SQLAlchemyError as error:
         print(f'SQLALCHEMY_ERROR: {error}')
-        return False
+        print("-" * 40)
+        print(f"{target} 테이블 데이터 적재가 실패하였습니다.")
+        print("-" * 40)
 
-'''
-현재 :  recruit, recruit_raw 생성 및 데이터 적재까지 완료
-다음 : 
-# insert_recruit_pipeline_run_history_table
-# recruit_rejected
-# recruit_standardized
-# recruit_valid
-# recruit_issue
-'''
-def insert_target_table(crawling_df : pd.DataFrame
-                   , target : str
-                   , tables : dict[str, Table]
-                   , engine : Engine
-                   , settings : DatabaseSettings):
-    print('-' * 40)
-    print('table insert start')
-    print('-' * 40)
+def insert_recruit_run_pipeline_history_table(
+    crawling_df : pd.DataFrame
+   , standardized_df : pd.DataFrame
+   , valid_df : pd.DataFrame
+   , invalid_df : pd.DataFrame
+   , issue_detail_df : pd.DataFrame
+   , target : str
+   , tables : dict[str, Table]
+   , engine : Engine
+) -> None:
+    ''' recruit 테이블에 데이터를 적재한다. '''
+    print("-" * 40)
+    print(f"{target} 테이블 데이터 적재가 시작하였습니다.")
+    print("-" * 40)
+    # 1. 원본 데이터를 복사한다.
 
-    if target == 'recruit':
-        if insert_recruit_table(
-             crawling_df
-            , target
-            , tables
-            , engine
-            , settings
-        ):
-            print(f'{target} 테이블에 데이터가 정상적으로 적재되었습니다.')
-        else:
-            print(f'{target} 테이블에 데이터 적재가 실패하였습니다.')
+    execution_id = uuid4()
+    history_df = pd.DataFrame([{
+        'execution_id': execution_id,
+        'started_at': datetime.now().strftime('%Y-%m-%d %H:%M:%S'),
+        'status': 'START'
+    }])
+    # 3. 테이블에 데이터를 적재한다.
+    '''
+    engine.begin() : 하나의 트랜잭션으로 묶기 위해 execute(), autocommit 옵션을 제거한다.
+    '''
+    try:
+        # 1. insert
+        with engine.begin() as connection:
+            record = history_df.to_dict(orient='records')[0]
+            connection.execute(
+                tables[f'{target}'].insert(),
+                record
+            )
+            print("-" * 40)
+            print(f"{target} 테이블 데이터 적재가 진행중입니다.")
+            print("-" * 40)
 
-    elif target == 'recruit_raw':
-        if insert_recruit_raw_table(
-                crawling_df
-                , target
-                , tables
-                , engine
-                , settings
-        ):
-            print(f'{target} 테이블에 데이터가 정상적으로 적재되었습니다.')
-        else:
-            print(f'{target} 테이블에 데이터 적재가 실패하였습니다.')
+            # update
+            connection.execute(
+                update(tables[f'{target}'])
+                .where(
+                    tables[f'{target}'].c.execution_id == execution_id
+                ).values(
+                    status = 'RUNNING',
+                    raw_count = len(crawling_df)+1,
+                    standardized_count = len(standardized_df)+1,
+                    valid_count = len(valid_df)+1,
+                    invalid_count = len(invalid_df)+1,
+                    issue_count = len(issue_detail_df)+1,
+                )
+            )
 
-    ## 나머지 테이블 구현 예정
+            connection.execute(
+                update(tables[f'{target}'])
+                .where(
+                    tables[f'{target}'].c.execution_id == execution_id
+                ).values(
+                    status='SUCCESS',
+                    completed_at = datetime.now().strftime('%Y-%m-%d %H:%M:%S'),
+                )
+            )
 
+            print("-" * 40)
+            print(f"{target} 테이블 데이터 적재가 완료되었습입니다.")
+            print("-" * 40)
 
-    print('-' * 40)
-    print('table insert end')
-    print('-' * 40)
+    except SQLAlchemyError as error:
+
+        with engine.begin() as connection:
+            connection.execute(
+                update(tables[f'{target}'])
+                .where(
+                    tables[f'{target}'].c.execution_id == execution_id
+                ).values(
+                    status='FAILED',
+                    error_messagse=f'{error}'
+                )
+            )
+
+        print(f'SQLALCHEMY_ERROR: {error}')
+        print("-" * 40)
+        print(f"{target} 테이블 데이터 적재가 실패하였습니다..")
+        print("-" * 40)
+
+def insert_recruit_standardized_table(
+        standardized_df: pd.DataFrame,
+        target : str,
+        tables: dict[str, Table],
+        engine: Engine,
+        settings : DatabaseSettings
+) -> None:
+    # 1. 원본 데이터를 복사한다.
+    _standardized_df = standardized_df.copy()
+
+    # 2. _standardized_df['no'] 컬럼(Primary Key, 순차증가), 데이터 관리 컬럼을 생성한다.
+    _standardized_df['no'] = range(0, len(_standardized_df))
+
+    _standardized_df['updated_at'] = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+    _standardized_df['updated_by'] = settings.author
+
+    _standardized_df['created_at'] = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+    _standardized_df['created_by'] = settings.author
+
+    # 3. 기존에 있는 데이터를 삭제한다.(Duplicate Key 방지)
+    try:
+        with engine.connect().execution_options(
+                isolation_level="AUTOCOMMIT"
+        ) as connection:
+            connection.execute(
+                text(f'delete from work24_recruit_schema.{target}')
+            )
+    except SQLAlchemyError as error:
+        print(f'SQLALCHEMY_ERROR: {error}')
+
+    # 4. 테이블에 데이터를 적재한다.
+    try:
+        with engine.connect().execution_options(
+                isolation_level="AUTOCOMMIT"
+        ) as connection:
+            for idx in range(0, len(_standardized_df.to_dict(orient='records'))):
+                connection.execute(
+                    tables[f'{target}'].insert(),
+                    _standardized_df.to_dict(orient='records')[idx]
+                )
+        print("-" * 40)
+        print(f"{target} 테이블 데이터 적재가 완료되었습니다.")
+        print("-" * 40)
+    except SQLAlchemyError as error:
+        print(f'SQLALCHEMY_ERROR: {error}')
+        print("-" * 40)
+        print(f"{target} 테이블 데이터 적재가 실패하였습니다.")
+        print("-" * 40)
+
+def insert_recruit_valid_table(
+        valid_df : pd.DataFrame,
+        target : str,
+        tables : dict[str, Table],
+        engine : Engine
+) -> None:
+    # 1. 원본 데이터를 복사한다.
+    _valid_df = valid_df.copy()
+
+    # 2. _valid_df['no'] 컬럼(Primary Key, 순차증가), 데이터 관리 컬럼을 생성한다.
+    _valid_df['no'] = range(0, len(_valid_df))
+
+    # 3. 기존에 있는 데이터를 삭제한다.(Duplicate Key 방지)
+    try:
+        with engine.connect().execution_options(
+                isolation_level="AUTOCOMMIT"
+        ) as connection:
+            connection.execute(
+                text(f'delete from work24_recruit_schema.{target}')
+            )
+    except SQLAlchemyError as error:
+        print(f'SQLALCHEMY_ERROR: {error}')
+
+    # 4. 테이블에 데이터를 적재한다.
+    try:
+        with engine.connect().execution_options(
+                isolation_level="AUTOCOMMIT"
+        ) as connection:
+            for idx in range(0, len(_valid_df.to_dict(orient='records'))):
+                connection.execute(
+                    tables[f'{target}'].insert(),
+                    _valid_df.to_dict(orient='records')[idx]
+                )
+        print("-" * 40)
+        print(f"{target} 테이블 데이터 적재가 완료되었습니다.")
+        print("-" * 40)
+    except SQLAlchemyError as error:
+        print(f'SQLALCHEMY_ERROR: {error}')
+        print("-" * 40)
+        print(f"{target} 테이블 데이터 적재가 실패하였습니다.")
+        print("-" * 40)
+
+def insert_recruit_rejected_table(
+        invalid_df : pd.DataFrame,
+        target : str,
+        tables : dict[str, Table],
+        engine : Engine
+) -> None:
+
+    # 1. 원본 데이터를 복사한다.
+    _invalid_df = invalid_df.copy()
+
+    # 2. _invalid_df['no'] 컬럼(Primary Key, 순차증가), 데이터 관리 컬럼을 생성한다.
+    _invalid_df['no'] = range(0, len(_invalid_df))
+
+    # 3. 기존에 있는 데이터를 삭제한다.(Duplicate Key 방지)
+    try:
+        with engine.connect().execution_options(
+                isolation_level="AUTOCOMMIT"
+        ) as connection:
+            connection.execute(
+                text(f'delete from work24_recruit_schema.{target}')
+            )
+    except SQLAlchemyError as error:
+        print(f'SQLALCHEMY_ERROR: {error}')
+
+    # 4. 테이블에 데이터를 적재한다.
+    try:
+        with engine.connect().execution_options(
+                isolation_level="AUTOCOMMIT"
+        ) as connection:
+            for idx in range(0, len(_invalid_df.to_dict(orient='records'))):
+                connection.execute(
+                    tables[f'{target}'].insert(),
+                    _invalid_df.to_dict(orient='records')[idx]
+                )
+        print("-" * 40)
+        print(f"{target} 테이블 데이터 적재가 완료되었습니다.")
+        print("-" * 40)
+    except SQLAlchemyError as error:
+        print(f'SQLALCHEMY_ERROR: {error}')
+        print("-" * 40)
+        print(f"{target} 테이블 데이터 적재가 실패하였습니다.")
+        print("-" * 40)
+
+def insert_recruit_issue_table(
+        issue_detail_df : pd.DataFrame,
+        target : str,
+        tables : dict[str, Table],
+        engine : Engine
+) -> None:
+
+    # 1. 원본 데이터를 복사한다.
+    _issue_detail_df = issue_detail_df.copy()
+
+    # 2. _issue_detail_df['no'] 컬럼(Primary Key, 순차증가), 데이터 관리 컬럼을 생성한다.
+    _issue_detail_df['no'] = range(0, len(_issue_detail_df))
+
+    # 3. 기존에 있는 데이터를 삭제한다.(Duplicate Key 방지)
+    try:
+        with engine.connect().execution_options(
+                isolation_level="AUTOCOMMIT"
+        ) as connection:
+            connection.execute(
+                text(f'delete from work24_recruit_schema.{target}')
+            )
+    except SQLAlchemyError as error:
+        print(f'SQLALCHEMY_ERROR: {error}')
+
+    # 4. 테이블에 데이터를 적재한다.
+    try:
+        with engine.connect().execution_options(
+                isolation_level="AUTOCOMMIT"
+        ) as connection:
+            for idx in range(0, len(_issue_detail_df.to_dict(orient='records'))):
+                connection.execute(
+                    tables[f'{target}'].insert(),
+                    _issue_detail_df.to_dict(orient='records')[idx]
+                )
+        print("-" * 40)
+        print(f"{target} 테이블 데이터 적재가 완료되었습니다.")
+        print("-" * 40)
+    except SQLAlchemyError as error:
+        print(f'SQLALCHEMY_ERROR: {error}')
+        print("-" * 40)
+        print(f"{target} 테이블 데이터 적재가 실패하였습니다.")
+        print("-" * 40)

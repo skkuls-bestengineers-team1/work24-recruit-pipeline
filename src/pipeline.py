@@ -15,7 +15,13 @@ from src.database import (
     build_metadata,
     create_postgresql_engine,
     create_work24_recruit_schema,
-    insert_target_table,
+    insert_recruit_table,
+    insert_recruit_raw_table,
+    insert_recruit_run_pipeline_history_table,
+    insert_recruit_standardized_table,
+    insert_recruit_valid_table,
+    insert_recruit_rejected_table,
+    insert_recruit_issue_table
 )
 from src.models import PipelinePaths
 from src.quality_checker import validate_jobs
@@ -130,8 +136,24 @@ def run_full_pipeline(
     recruit_df = _prepare_recruit_dataframe(validation.valid_df)
     raw_df = _prepare_raw_dataframe(crawling_df)
 
-    insert_target_table(recruit_df, "recruit", tables, engine, settings)
-    insert_target_table(raw_df, "recruit_raw", tables, engine, settings)
+    # 실제 데이터 적재
+    insert_recruit_table(recruit_df, "recruit", tables, engine, settings)
+    insert_recruit_raw_table(raw_df, "recruit_raw", tables, engine, settings)
+    insert_recruit_run_pipeline_history_table(
+                        crawling_df,
+                        standardized_df,
+                        validation.valid_df,
+                        validation.invalid_df,
+                        validation.issue_detail_df,
+                        "recruit_pipeline_run_history",
+                        tables,
+                        engine)
+    insert_recruit_standardized_table(standardized_df, 'recruit_standardized', tables, engine, settings)
+    insert_recruit_valid_table(validation.valid_df, 'recruit_valid', tables, engine)
+    insert_recruit_rejected_table(validation.invalid_df, 'recruit_rejected', tables, engine)
+    insert_recruit_issue_table(validation.issue_detail_df, 'recruit_issue', tables, engine)
+
+
 
     return (
         "데이터베이스/스키마/테이블/데이터 적재까지 완료되었습니다. "
